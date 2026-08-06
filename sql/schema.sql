@@ -40,10 +40,13 @@ CREATE TABLE public.goods (
 	photo_count int4 NOT NULL,
 	"condition" varchar(30) NOT NULL,
 	category varchar(30) NOT NULL,
+	likes_count int4 NOT NULL,
 	listed_date date NOT NULL,
 	price numeric(8, 2) NOT NULL,
 	price_with_protection numeric(8, 2) NOT NULL,
+	shipping_cost numeric(8, 2) NOT NULL,
 	currency_code varchar(10) NOT NULL,
+	status varchar(10) DEFAULT 'active'::character varying NULL,
 	sold_date date NULL,
 	seller_id int8 NOT NULL,
 	CONSTRAINT goods_pkey PRIMARY KEY (game_id),
@@ -51,19 +54,21 @@ CREATE TABLE public.goods (
 );
 
 
--- public.price_changes definition
+-- public.item_metrics_history definition
 
 -- Drop table
 
--- DROP TABLE public.price_changes;
+-- DROP TABLE public.item_metrics_history;
 
-CREATE TABLE public.price_changes (
+CREATE TABLE public.item_metrics_history (
 	game_id int8 NOT NULL,
 	"date" date NOT NULL,
 	price numeric(8, 2) NOT NULL,
 	price_with_protection numeric(8, 2) NOT NULL,
-	CONSTRAINT price_change_id PRIMARY KEY (game_id, date),
-	CONSTRAINT price_changes_game_id_fkey FOREIGN KEY (game_id) REFERENCES public.goods(game_id)
+	shipping_cost numeric(8, 2) NOT NULL,
+	likes_count int4 NOT NULL,
+	CONSTRAINT item_metrics_history_id PRIMARY KEY (game_id, date),
+	CONSTRAINT item_metrics_history_game_id_fkey FOREIGN KEY (game_id) REFERENCES public.goods(game_id)
 );
 
 

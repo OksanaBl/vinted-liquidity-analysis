@@ -1,2 +1,2 @@
 # vinted-liquidity-analysis
-nalyzing factors affecting listing liquidity on Vinted
+Analyzing factors affecting listing liquidity on Vinted
