@@ -19,7 +19,7 @@ CREATE TABLE public.exchange_rates (
 -- DROP TABLE public.sellers;
 
 CREATE TABLE public.sellers (
-	seller_id int8 NOT NULL,
+	seller_id bpchar(64) NOT NULL,
 	seller_rating numeric(10, 2) NOT NULL,
 	review_count int4 NOT NULL,
 	CONSTRAINT sellers_pkey PRIMARY KEY (seller_id)
@@ -36,7 +36,7 @@ CREATE TABLE public.goods (
 	game_id int8 NOT NULL,
 	title varchar(150) NOT NULL,
 	description text NOT NULL,
-	brand varchar(150) NOT NULL,
+	brand varchar(150) NULL,
 	photo_count int4 NOT NULL,
 	"condition" varchar(30) NOT NULL,
 	category varchar(30) NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE public.goods (
 	currency_code varchar(10) NOT NULL,
 	status varchar(10) DEFAULT 'active'::character varying NULL,
 	sold_date date NULL,
-	seller_id int8 NOT NULL,
+	seller_id bpchar(64) NOT NULL,
 	CONSTRAINT goods_pkey PRIMARY KEY (game_id),
 	CONSTRAINT goods_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES public.sellers(seller_id)
 );
@@ -79,7 +79,7 @@ CREATE TABLE public.item_metrics_history (
 -- DROP TABLE public.rating_changes;
 
 CREATE TABLE public.rating_changes (
-	seller_id int8 NOT NULL,
+	seller_id bpchar(64) NOT NULL,
 	"date" date NOT NULL,
 	seller_rating numeric(10, 2) NOT NULL,
 	review_count int4 NOT NULL,
