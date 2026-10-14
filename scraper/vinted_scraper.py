@@ -6,7 +6,7 @@ import psycopg
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from psycopg.rows import dict_row
 
-# Принять cookies
+
 def accept_cookies(page):
     policy_button = page.locator("#onetrust-accept-btn-handler")
     policy_button_count = policy_button.count()
@@ -14,7 +14,15 @@ def accept_cookies(page):
         policy_button.click()
         page.wait_for_timeout(5000)
 
-# Сбор доступных game_id на страницах каталога
+# Закрывает окно выбора страны, если Vinted его показал.
+# Окно появляется при нелитовском IP (например, на раннере Actions)
+# и перекрывает баннер cookies. Если окна нет, ничего не делает.
+def choose_country(page):
+    modal_layer = page.locator('[data-testid="domain-select-modal--overlay"]')
+    if modal_layer.count() > 0:
+        modal_layer.get_by_text("Lietuva", exact=True).click()
+        modal_layer.wait_for(state="hidden")
+
 def get_game_ids_from_page(page):
     game_ids = []
     next_button = page.locator('[data-testid="catalog-pagination--next-page"]')
@@ -34,7 +42,6 @@ def get_game_ids_from_page(page):
             page.wait_for_timeout(10000)
     return game_ids
 
-# Запись id_snapshots
 def save_snapshots_to_db(conn, game_ids):
     cur = conn.cursor()
     snapshot_datetime = datetime.now(timezone.utc)
@@ -45,7 +52,6 @@ def save_snapshots_to_db(conn, game_ids):
     """, snapshot_parameters)
     conn.commit()
 
-# Выбор только новых game_ids
 def get_new_game_ids(conn):
     cur = conn.cursor()
     cur.execute("SELECT game_id FROM goods")
@@ -64,7 +70,6 @@ def get_new_game_ids(conn):
     new_game_ids = list(set(snapshot_game_ids) - set(existing_game_ids))
     return new_game_ids
 
-# Сбор данных со страницы карточки товара
 def extract_game_properties_from_page(page, game_id):
     url = f"https://www.vinted.lt/items/{game_id}"
     page.goto(url, wait_until="domcontentloaded")
@@ -201,7 +206,6 @@ def extract_game_properties_from_page(page, game_id):
 
     return game_parameters
 
-# Запись собранных данных в БД Postgres
 def save_to_db(conn, game_parameters):
     cur = conn.cursor()
     cur.execute("""
@@ -225,7 +229,6 @@ def save_to_db(conn, game_parameters):
 
     conn.commit()
 
-# Выгрузка из БД game_id, для которых sold_date IS NULL
 def get_unsold_game_ids_from_db(conn):
     cur = conn.cursor()
     cur.execute("SELECT game_id FROM goods WHERE sold_date IS NULL")
@@ -233,7 +236,6 @@ def get_unsold_game_ids_from_db(conn):
 
     return unsold_game_ids
 
-# Проверка текущих параметров
 def get_current_game_properties_from_db(conn, game_id):
     cur = conn.cursor()
 
@@ -283,7 +285,6 @@ def get_current_game_properties_from_db(conn, game_id):
 
     return game_properties, seller_properties
 
-# Проверка актуальных характеристик товара и продавца
 def extract_current_game_properties_from_page(page, game_id):
     url = f"https://www.vinted.lt/items/{game_id}"
 
@@ -378,7 +379,6 @@ def extract_current_game_properties_from_page(page, game_id):
 
     return item_status, game_parameters_from_page, seller_parameters_from_page
 
-# Добавление изменившихся характеристик товара и продавца
 def check_and_rewrite_game_properties(conn, game_properties, seller_properties, item_status, game_parameters_from_page, seller_parameters_from_page):
     cur = conn.cursor()
     current_date = datetime.today().date()

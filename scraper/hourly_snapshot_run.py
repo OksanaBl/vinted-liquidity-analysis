@@ -7,9 +7,11 @@ from dotenv import load_dotenv
 
 from vinted_scraper import (
     accept_cookies,
+    choose_country,
     get_game_ids_from_page,
-    save_snapshots_to_db,
-    save_run_log
+    save_run_log,
+    save_snapshots_to_db
+
 )
 
 load_dotenv()
@@ -34,13 +36,12 @@ with sync_playwright() as p:
     page.goto("https://www.vinted.lt/catalog/4881-board-games?referrer=item-crumbs")
     # ждём, пока страница каталога полностью прогрузит JS-контент
     page.wait_for_timeout(3000)
+
     print(page.title())
     print(page.url)
 
-    modal_layer = page.locator('[data-testid="domain-select-modal--overlay"]')
-    if modal_layer.count() > 0:
-        print(modal_layer.inner_text())
 
+    choose_country(page)
     accept_cookies(page)
     game_ids = get_game_ids_from_page(page)
     processed_game_count = len(game_ids)
