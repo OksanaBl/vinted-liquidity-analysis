@@ -1,0 +1,34 @@
+# This is a basic workflow that is manually triggered
+
+name: Manual hourly_snapshot_run test
+
+# Test of hourly_snapshot_run.py launcing
+on:
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  launch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    # Runs a single command using the runners shell
+    - name: get scripts
+      uses: actions/checkout@v4
+    - name: create environment
+      uses: actions/setup-python@v5
+      with: 
+        python-version: "3.13"
+    - name: instal libraries
+      run:  pip install -r requirements.txt
+    - name: playwright install 
+      run: playwright install --with-deps chromium
+    - name: launch hourly script
+      run: python scraper/hourly_snapshot_run.py
+      env: 
+        DATABASE_URL: ${{secrets.DATABASE_URL}}
+
+      
+      
