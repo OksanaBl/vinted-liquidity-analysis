@@ -18,9 +18,6 @@ load_dotenv()
 connection_string = os.getenv("DATABASE_URL")
 
 start_time = datetime.now(timezone.utc)
-# Подключение к БД
-conn = psycopg.connect(connection_string)
-# Запуск и настройка браузера
 with sync_playwright() as p:
     browser = p.chromium.launch()
     context = browser.new_context()
@@ -45,8 +42,10 @@ with sync_playwright() as p:
     accept_cookies(page)
     game_ids = get_game_ids_from_page(page)
     processed_game_count = len(game_ids)
-    save_snapshots_to_db(conn, game_ids)
     browser.close()
+
+conn = psycopg.connect(connection_string)
+save_snapshots_to_db(conn, game_ids)
 
 end_time = datetime.now(timezone.utc)
 log_parameters = {
