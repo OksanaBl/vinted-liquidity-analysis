@@ -36,6 +36,11 @@ with sync_playwright() as p:
     page.wait_for_timeout(3000)
     print(page.title())
     print(page.url)
+
+    modal_layer = page.locator('[data-testid="domain-select-modal--overlay"]')
+    if modal_layer.count() > 0:
+        print(modal_layer.inner_text())
+
     accept_cookies(page)
     game_ids = get_game_ids_from_page(page)
     processed_game_count = len(game_ids)
