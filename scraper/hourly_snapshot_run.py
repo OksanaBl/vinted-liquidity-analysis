@@ -34,7 +34,8 @@ with sync_playwright() as p:
     page.goto("https://www.vinted.lt/catalog/4881-board-games?referrer=item-crumbs")
     # ждём, пока страница каталога полностью прогрузит JS-контент
     page.wait_for_timeout(3000)
-
+    print(page.title())
+    print(page.url)
     accept_cookies(page)
     game_ids = get_game_ids_from_page(page)
     processed_game_count = len(game_ids)

@@ -9,8 +9,10 @@ from psycopg.rows import dict_row
 # Принять cookies
 def accept_cookies(page):
     policy_button = page.locator("#onetrust-accept-btn-handler")
-    policy_button.click()
-    page.wait_for_timeout(5000)
+    policy_button_count = policy_button.count()
+    if policy_button_count > 0:
+        policy_button.click()
+        page.wait_for_timeout(5000)
 
 # Сбор доступных game_id на страницах каталога
 def get_game_ids_from_page(page):
