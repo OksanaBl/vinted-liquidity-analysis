@@ -2,7 +2,7 @@
 
 name: Manual hourly_snapshot_run test
 
-# Test of hourly_snapshot_run.py launcing
+# Test of hourly_snapshot_run.py launching
 on:
   workflow_dispatch:
 
