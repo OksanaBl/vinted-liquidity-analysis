@@ -75,6 +75,16 @@ def extract_game_properties_from_page(page, game_id):
     page.goto(url, wait_until="domcontentloaded")
     page.wait_for_timeout(3000)
 
+    not_found_marker_count = page.locator('[data-testid="page-not-found"]').count()
+    if not_found_marker_count > 0:
+        print(f"Товар {game_id} удалён. Его характеристики не извлекаем.")
+        return None
+
+    board_games_marker_count = page.locator('[data-testid="breadcrumb"][href^="/catalog/4881-board-games"]').count()
+    if board_games_marker_count == 0:
+        print(f"Внимание! Товар {game_id} не относится к категории Board games. Его характеристики не извлекаем.")
+        return None
+
     title = page.locator("h1").text_content()
     description = page.locator('div[itemprop="description"]').text_content()
 

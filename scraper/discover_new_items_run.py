@@ -49,12 +49,13 @@ with sync_playwright() as p:
             print(f"Внимание! Для {game_id} возникла ошибка парсинга {e}")
             continue  # не прерываем discovery из-за одной сломанной карточки товара
 
-        try:
-            save_to_db(conn, game_parameters)
-            processed_game_count += 1
-        except Exception as e:
-            conn.rollback()  # откатываем транзакцию, чтобы ошибка сохранения одного товара не заблокировала следующие
-            print(f"Внимание! {game_id} не удалось сохранить в базу. Ошибка: {e}")
+        if game_parameters is not None:
+            try:
+                save_to_db(conn, game_parameters)
+                processed_game_count += 1
+            except Exception as e:
+                conn.rollback()  # откатываем транзакцию, чтобы ошибка сохранения одного товара не заблокировала следующие
+                print(f"Внимание! {game_id} не удалось сохранить в базу. Ошибка: {e}")
 
     browser.close()
 
