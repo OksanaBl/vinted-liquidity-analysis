@@ -24,7 +24,7 @@ def choose_country(page):
         modal_layer.wait_for(state="hidden")
 
 def get_game_ids_from_page(page):
-    game_ids = []
+    game_ids = set()
     next_button = page.locator('[data-testid="catalog-pagination--next-page"]')
 
     while True:
@@ -32,7 +32,7 @@ def get_game_ids_from_page(page):
 
         for link in item_links:
             game_id = link.get_attribute("href").split("/")[-1].split("-")[0]
-            game_ids.append(game_id)
+            game_ids.add(game_id)
 
         if next_button.get_attribute("aria-disabled") != "false":
             break
@@ -40,7 +40,7 @@ def get_game_ids_from_page(page):
             print(f"Страница обработана, найдено {len(game_ids)} game_id")
             next_button.click()
             page.wait_for_timeout(10000)
-    return game_ids
+    return list(game_ids)
 
 def save_snapshots_to_db(conn, game_ids):
     cur = conn.cursor()

@@ -8,10 +8,12 @@ from psycopg.rows import dict_row
 
 from vinted_scraper import (
     accept_cookies,
-    get_new_game_ids,
+    choose_country,
     extract_game_properties_from_page,
-    save_to_db,
-    save_run_log
+    get_new_game_ids,
+    save_run_log,
+    save_to_db
+
 )
 
 load_dotenv()
@@ -36,7 +38,7 @@ with sync_playwright() as p:
     page.goto("https://www.vinted.lt/catalog/4881-board-games?referrer=item-crumbs")
     # ждём, пока страница каталога полностью прогрузит JS-контент
     page.wait_for_timeout(3000)
-
+    choose_country(page)
     accept_cookies(page)
     new_game_ids = get_new_game_ids(conn)
     processed_game_count = 0

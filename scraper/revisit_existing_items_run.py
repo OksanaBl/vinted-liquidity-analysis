@@ -8,10 +8,11 @@ from psycopg.rows import dict_row
 
 from vinted_scraper import (
     accept_cookies,
-    get_unsold_game_ids_from_db,
-    get_current_game_properties_from_db,
-    extract_current_game_properties_from_page,
     check_and_rewrite_game_properties,
+    choose_country,
+    extract_current_game_properties_from_page,
+    get_current_game_properties_from_db,
+    get_unsold_game_ids_from_db,
     save_run_log
 )
 
@@ -38,6 +39,7 @@ with sync_playwright() as p:
     # ждём, пока страница каталога полностью прогрузит JS-контент
     page.wait_for_timeout(3000)
 
+    choose_country(page)
     accept_cookies(page)
     unsold_game_ids = get_unsold_game_ids_from_db(conn)
 
