@@ -2,7 +2,7 @@
 
 name: Manual discover_new_items_run test
 
-# Test of discover_new_items_run launcing
+# Test of discover_new_items_run launching
 on:
   workflow_dispatch:
 
