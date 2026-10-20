@@ -1,7 +1,7 @@
 -- Создание таблиц
 CREATE TABLE IF NOT EXISTS sellers (
     seller_id CHAR(64) PRIMARY KEY,
-    seller_rating DECIMAL(10,2) NOT NULL,
+    seller_rating DECIMAL(10,2),
     review_count INT NOT NULL
     );
     
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS rating_changes (
 	seller_id CHAR(64) REFERENCES sellers(seller_id) NOT NULL,
 	date DATE NOT NULL,
 	CONSTRAINT rating_change_id PRIMARY KEY (seller_id, date),
-	seller_rating DECIMAL(10,2) NOT NULL,
+	seller_rating DECIMAL(10,2),
     review_count INT NOT NULL
 );
 
