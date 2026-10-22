@@ -85,7 +85,7 @@ def extract_game_properties_from_page(page, game_id):
         print(f"Внимание! Товар {game_id} не относится к категории Board games. Его характеристики не извлекаем.")
         return None
 
-    title = page.locator("h1").text_content()
+    title = page.locator('[data-testid="item-page-summary-plugin"] h1').text_content()
     description = page.locator('div[itemprop="description"]').text_content()
 
     try:
@@ -94,18 +94,28 @@ def extract_game_properties_from_page(page, game_id):
         # Бренд может отсутствовать, в этой ситуации селектор не будет обнаружен
         brand = None
 
-    photo_count = int(
-        page.locator("#content > section > section > div > figure._item-photo-box-module-scss-module__KFJIwq__item-description.u-flexbox._item-photo-box-module-scss-module__KFJIwq__item-photo._item-photo-box-module-scss-module__KFJIwq__item-photo")
-        .count()
-    )
+    photo_count = page.locator("[data-photoid]").count()
+    if photo_count == 0:
+        print(f"Внимание! Не найдено ни одного фото для game_id {game_id}")
+        photo_count = None
+    elif page.locator('[data-testid="item-photo-5--label"]').count() > 0:
+        editional_photo_mark = int(page.locator('[data-testid="item-photo-5--label"]').text_content().strip().split(" ")[-1])
+        photo_count += editional_photo_mark
+
+
     condition = page.locator('div[itemprop="status"]').text_content()
     category = "Board games"
 
-    try:
-        likes_count = int(page.locator("#content > section > section > div > div > button > span.web_ui__Text__text.web_ui__Text__body.web_ui__Text__left").text_content().strip())
-    except PlaywrightTimeoutError:
-        # При отсутствии лайков, поля с количеством на странице отсутствует
-        likes_count = 0
+    likes_button = page.locator('[data-testid="favourite-button"]')
+    if likes_button.count() == 1:
+        try:
+            likes_count = int(likes_button.locator("span.web_ui__Text__text").text_content().strip())
+        except PlaywrightTimeoutError:
+            # При отсутствии лайков, поля с количеством на странице отсутствует
+            likes_count = 0
+    else:
+        print(f"Внимание! Возникла проблема с полем 'Лайки' для game_id {game_id}.")
+        likes_count = None
 
     try:
         raw_listed_text = page.locator('div[itemprop="upload_date"]').text_content().strip()
@@ -193,7 +203,7 @@ def extract_game_properties_from_page(page, game_id):
     # На проверенных страницах блок с числом отзывов есть всегда, в том
     # числе при 0 отзывов (отражается 0). Если блок исчезнет, поиск упадёт
     # и товар будет пропущен.
-    review_count = int(page.locator("#sidebar > div._item-details-module-scss-module__ymptpG__item-page-sidebar-content > div:nth-child(3) > div > a > div.web_ui__Cell__content > div.web_ui__Cell__body > div > div.web_ui__Rating__label > span").text_content())
+    review_count = int(page.locator('a[href^="/member/"] .web_ui__Rating__label span').text_content())
 
     game_parameters = {
         "game_id": game_id,
@@ -311,7 +321,7 @@ def extract_current_game_properties_from_page(page, game_id):
         return item_status, None, None
 
     else:
-        sold_badge = page.locator("#sidebar > div._item-details-module-scss-module__ymptpG__item-page-sidebar-content > div:nth-child(1) > div > div.web_ui__Cell__cell.web_ui__Cell__default.web_ui__Cell__success > div > div").count()
+        sold_badge = page.locator("#sidebar .web_ui__Cell__success", has_text="Sold").count()
         if sold_badge > 0:
             item_status = {
                 "game_id": game_id,
@@ -350,11 +360,16 @@ def extract_current_game_properties_from_page(page, game_id):
                 print(f"Внимание! Обнаружена неизвестная стоимость доставки: {shipping_cost} для game_id {game_id}")
                 shipping_cost = None
 
-        try:
-            likes_count = int(page.locator("#content > section > section > div > div > button > span.web_ui__Text__text.web_ui__Text__body.web_ui__Text__left").text_content().strip())
-        except PlaywrightTimeoutError:
-            # При отсутствии лайков, поля с количеством на странице отсутствует
-            likes_count = 0
+        likes_button = page.locator('[data-testid="favourite-button"]')
+        if likes_button.count() == 1:
+            try:
+                likes_count = int(likes_button.locator("span.web_ui__Text__text").text_content().strip())
+            except PlaywrightTimeoutError:
+                # При отсутствии лайков, поля с количеством на странице отсутствует
+                likes_count = 0
+        else:
+            print(f"Внимание! Возникла проблема с полем 'Лайки' для game_id {game_id}.")
+            likes_count = None
 
         # Если seller_id нет на странице, то данные о товаре неполные и их
         # не записываем: поиск элемента падает с исключением, а раннер
@@ -371,7 +386,7 @@ def extract_current_game_properties_from_page(page, game_id):
         # На проверенных страницах блок с числом отзывов есть всегда, в том
         # числе при 0 отзывов (отражается 0). Если блок исчезнет, поиск упадёт
         # и товар будет пропущен.
-        review_count = int(page.locator("#sidebar > div._item-details-module-scss-module__ymptpG__item-page-sidebar-content > div:nth-child(3) > div > a > div.web_ui__Cell__content > div.web_ui__Cell__body > div > div.web_ui__Rating__label > span").text_content().strip())
+        review_count = int(page.locator('a[href^="/member/"] .web_ui__Rating__label span').text_content().strip())
 
         game_parameters_from_page = {
                 'game_id': game_id,
@@ -409,6 +424,9 @@ def check_and_rewrite_game_properties(conn, game_properties, seller_properties, 
             cur.execute("""
             INSERT INTO rating_changes (seller_id, date, seller_rating, review_count)
             VALUES (%(seller_id)s, %(date)s, %(seller_rating)s, %(review_count)s)
+            ON CONFLICT (seller_id, date) DO UPDATE
+            SET seller_rating = EXCLUDED.seller_rating,
+                review_count = EXCLUDED.review_count
             """, changed_seller_parameters)
 
     conn.commit()
