@@ -88,10 +88,15 @@ def extract_game_properties_from_page(page, game_id):
     title = page.locator('[data-testid="item-page-summary-plugin"] h1').text_content()
     description = page.locator('div[itemprop="description"]').text_content()
 
-    try:
-        brand = page.locator('a[href^="/brand/"] [itemprop="name"]').text_content().strip()
-    except PlaywrightTimeoutError:
+    brand_tag = page.locator('a[href^="/brand/"] [itemprop="name"]')
+    brand_tag_count = brand_tag.count()
+    if brand_tag_count == 1:
+        brand = brand_tag.text_content().strip()
+    elif brand_tag_count == 0:
         # Бренд может отсутствовать, в этой ситуации селектор не будет обнаружен
+        brand = None
+    else:
+        print(f"Внимание! Для товара {game_id} найдено {brand_tag_count} тегов бренда.")
         brand = None
 
     photo_count = page.locator("[data-photoid]").count()
@@ -107,15 +112,20 @@ def extract_game_properties_from_page(page, game_id):
     category = "Board games"
 
     likes_button = page.locator('[data-testid="favourite-button"]')
-    if likes_button.count() == 1:
-        try:
-            likes_count = int(likes_button.locator("span.web_ui__Text__text").text_content().strip())
-        except PlaywrightTimeoutError:
-            # При отсутствии лайков, поля с количеством на странице отсутствует
-            likes_count = 0
-    else:
-        print(f"Внимание! Возникла проблема с полем 'Лайки' для game_id {game_id}.")
+    likes_button_count = likes_button.count()
+    if likes_button_count != 1:
+        print(f"Внимание! Найдено {likes_button_count} кнопок 'Лайки' для game_id {game_id}.")
         likes_count = None
+    else:
+        likes_counter = likes_button.locator("span.web_ui__Text__text")
+        likes_counter_count = likes_counter.count()
+        if likes_counter_count == 1:
+            likes_count = int(likes_counter.text_content().strip())
+        elif likes_counter_count == 0:
+            likes_count = 0
+        else:
+            print(f"Внимание! Найдено {likes_counter_count} полей текст в блоке 'Лайки' для game_id {game_id}.")
+            likes_count = None
 
     try:
         raw_listed_text = page.locator('div[itemprop="upload_date"]').text_content().strip()
@@ -194,16 +204,21 @@ def extract_game_properties_from_page(page, game_id):
     # Псевдонимизация: в БД записываем хеш seller_id, а не сам id.
     seller_id = hashlib.sha256(page.locator('a:has([data-testid="profile-username"])').get_attribute("href").split("/")[-1].encode('utf-8')).hexdigest()
 
-    try:
-        seller_rating = Decimal(page.locator('div[aria-label^="Member rated"]').get_attribute("aria-label").split(" ")[2].strip())
-    except PlaywrightTimeoutError:
-        print(f"Внимание! Не найдено поле 'Рейтинг продавца' для game_id {game_id}")
-        seller_rating = None
-
     # На проверенных страницах блок с числом отзывов есть всегда, в том
     # числе при 0 отзывов (отражается 0). Если блок исчезнет, поиск упадёт
     # и товар будет пропущен.
     review_count = int(page.locator('a[href^="/member/"] .web_ui__Rating__label span').text_content())
+
+    seller_rating_mark = page.locator('div[aria-label^="Member rated"]')
+    if seller_rating_mark.count() == 1:
+        seller_rating = Decimal(seller_rating_mark.get_attribute("aria-label").split(" ")[2].strip())
+    elif seller_rating_mark.count() == 0 and review_count == 0:
+        seller_rating = None
+    else:
+        print(f"""Внимание! Обнаружены проблемы с полем 'Рейтинг продавца' для game_id {game_id}
+    - Найдено {seller_rating_mark.count()} блоков. Если больше 1 - изменилась структура страницы.
+    - Рейтинг продавца не обнаружен, но при этом обнаружены отзывы ({review_count} шт.)""")
+        seller_rating = None
 
     game_parameters = {
         "game_id": game_id,
@@ -310,6 +325,7 @@ def extract_current_game_properties_from_page(page, game_id):
 
     page.goto(url, wait_until="domcontentloaded")
     page.wait_for_timeout(3000)
+
     not_found_marker_count = page.locator('[data-testid="page-not-found"]').count()
     if not_found_marker_count > 0:
         item_status = {
@@ -334,6 +350,17 @@ def extract_current_game_properties_from_page(page, game_id):
                 "status": "active",
                 "sold_date": None
             }
+
+        # Если seller_id нет на странице, то данные о товаре неполные и их
+            # не записываем: поиск элемента падает с исключением, а раннер
+            # ловит его в try/except по товару и пропускает только этот товар.
+            # Псевдонимизация: в БД записываем хеш seller_id, а не сам id.
+            seller_id_mark = page.locator('a:has([data-testid="profile-username"])')
+            seller_id_mark_count = seller_id_mark.count()
+            if seller_id_mark_count == 1:
+                seller_id = hashlib.sha256(seller_id_mark.get_attribute("href").split("/")[-1].encode('utf-8')).hexdigest()
+            else:
+                raise ValueError(f"Ссылка на продавца не найдена или найдена не одна: {seller_id_mark_count} шт.")
 
         try:
             price = Decimal(page.locator('[data-testid="item-price"]').text_content().strip()[1:])
@@ -361,32 +388,36 @@ def extract_current_game_properties_from_page(page, game_id):
                 shipping_cost = None
 
         likes_button = page.locator('[data-testid="favourite-button"]')
-        if likes_button.count() == 1:
-            try:
-                likes_count = int(likes_button.locator("span.web_ui__Text__text").text_content().strip())
-            except PlaywrightTimeoutError:
-                # При отсутствии лайков, поля с количеством на странице отсутствует
-                likes_count = 0
-        else:
-            print(f"Внимание! Возникла проблема с полем 'Лайки' для game_id {game_id}.")
+        likes_button_count = likes_button.count()
+        if likes_button_count != 1:
+            print(f"Внимание! Найдено {likes_button_count} кнопок 'Лайки' для game_id {game_id}.")
             likes_count = None
-
-        # Если seller_id нет на странице, то данные о товаре неполные и их
-        # не записываем: поиск элемента падает с исключением, а раннер
-        # ловит его в try/except по товару и пропускает только этот товар.
-        # Псевдонимизация: в БД записываем хеш seller_id, а не сам id.
-        seller_id = hashlib.sha256(page.locator('a:has([data-testid="profile-username"])').get_attribute("href").split("/")[-1].encode('utf-8')).hexdigest()
-
-        try:
-            seller_rating = Decimal(page.locator('div[aria-label^="Member rated"]').get_attribute("aria-label").split(" ")[2].strip())
-        except PlaywrightTimeoutError:
-            print(f"Внимание! Не найдено поле 'Рейтинг продавца' для товара {game_id}")
-            seller_rating = None
+        else:
+            likes_counter = likes_button.locator("span.web_ui__Text__text")
+            likes_counter_count = likes_counter.count()
+            if likes_counter_count == 1:
+                likes_count = int(likes_counter.text_content().strip())
+            elif likes_counter_count == 0:
+                likes_count = 0
+            else:
+                print(f"Внимание! Найдено {likes_counter_count} полей текст в блоке 'Лайки' для game_id {game_id}.")
+                likes_count = None
 
         # На проверенных страницах блок с числом отзывов есть всегда, в том
         # числе при 0 отзывов (отражается 0). Если блок исчезнет, поиск упадёт
         # и товар будет пропущен.
         review_count = int(page.locator('a[href^="/member/"] .web_ui__Rating__label span').text_content().strip())
+
+        seller_rating_mark = page.locator('div[aria-label^="Member rated"]')
+        if seller_rating_mark.count() == 1:
+            seller_rating = Decimal(seller_rating_mark.get_attribute("aria-label").split(" ")[2].strip())
+        elif seller_rating_mark.count() == 0 and review_count == 0:
+            seller_rating = None
+        else:
+            print(f"""Внимание! Обнаружены проблемы с полем 'Рейтинг продавца' для game_id {game_id}
+        - Найдено {seller_rating_mark.count()} блоков. Если больше 1 - изменилась структура страницы.
+        - Рейтинг продавца не обнаружен, но при этом обнаружены отзывы ({review_count} шт.)""")
+            seller_rating = None
 
         game_parameters_from_page = {
                 'game_id': game_id,
