@@ -458,6 +458,11 @@ def check_and_rewrite_game_properties(conn, game_properties, seller_properties, 
             cur.execute("""
             INSERT INTO item_metrics_history (game_id, date, price, price_with_protection, shipping_cost, likes_count)
             VALUES (%(game_id)s, %(date)s, %(price)s, %(price_with_protection)s, %(shipping_cost)s, %(likes_count)s)
+            ON CONFLICT (game_id, date) DO UPDATE
+            SET price = EXCLUDED.price,
+                price_with_protection = EXCLUDED.price_with_protection,
+                shipping_cost = EXCLUDED.shipping_cost,
+                likes_count = EXCLUDED.likes_count
             """, changed_game_parameters)
 
         if seller_properties != seller_parameters_from_page:
