@@ -5,8 +5,6 @@ name: Manual hourly_snapshot_run test
 # Test of hourly_snapshot_run.py launching
 on:
   workflow_dispatch:
-  schedule:
-  - cron: "11 * * * *"
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
