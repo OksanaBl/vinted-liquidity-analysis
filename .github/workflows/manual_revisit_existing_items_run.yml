@@ -5,8 +5,6 @@ name: Manual revisit_existing_items_run test
 # Test of revisit_existing_items_run.py launching
 on:
   workflow_dispatch:
-  schedule:
-  - cron: "16 17 * * *"
 
 concurrency:
   group: daily-scraper
