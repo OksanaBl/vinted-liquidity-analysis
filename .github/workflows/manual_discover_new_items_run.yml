@@ -5,9 +5,7 @@ name: Manual discover_new_items_run test
 # Test of discover_new_items_run launching
 on:
   workflow_dispatch:
-  schedule:
-  - cron: "16 14 * * *"
-
+  
 concurrency:
   group: daily-scraper
   cancel-in-progress: false
