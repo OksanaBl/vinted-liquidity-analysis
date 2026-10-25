@@ -187,6 +187,8 @@ def extract_game_properties_from_page(page, game_id):
         shipping_cost = page.locator('[data-testid="item-shipping-banner--suffix"]').text_content().strip()
         if shipping_cost.lower().find("free") != -1:
             shipping_cost = Decimal(0.0)
+        elif page.locator('[data-testid="item-shipping-banner-title"]').text_content().lower().find("free") != -1:
+            shipping_cost = Decimal(0.0)
         else:
             print(f"Внимание! Обнаружена неизвестная стоимость доставки: {shipping_cost} для game_id {game_id}")
             shipping_cost = None
@@ -198,11 +200,18 @@ def extract_game_properties_from_page(page, game_id):
         print(f"Внимание! Обнаружена неизвестная валюта: {currency_code} для game_id {game_id}")
         currency_code = None
 
-    # Если seller_id нет на странице, то данные о товаре неполные и их
-    # не записываем: поиск элемента падает с исключением, а раннер
-    # ловит его в try/except по товару и пропускает только этот товар.
-    # Псевдонимизация: в БД записываем хеш seller_id, а не сам id.
-    seller_id = hashlib.sha256(page.locator('a:has([data-testid="profile-username"])').get_attribute("href").split("/")[-1].encode('utf-8')).hexdigest()
+    seller_id_mark = page.locator('a:has([data-testid="profile-username"])')
+    seller_id_mark_count = seller_id_mark.count()
+    if seller_id_mark_count == 1:
+        seller_id = hashlib.sha256(seller_id_mark.get_attribute("href").split("/")[-1].encode('utf-8')).hexdigest()
+    else:
+        raise ValueError(f"Ссылка на продавца не найдена или найдена не одна: {seller_id_mark_count} шт.")
+
+    try:
+        price = Decimal(page.locator('[data-testid="item-price"]').text_content().strip()[1:])
+    except PlaywrightTimeoutError:
+        print(f"Внимание! Не найдено поле 'Цена' для game_id {game_id}")
+        price = None
 
     # На проверенных страницах блок с числом отзывов есть всегда, в том
     # числе при 0 отзывов (отражается 0). Если блок исчезнет, поиск упадёт
@@ -335,7 +344,6 @@ def extract_current_game_properties_from_page(page, game_id):
         }
         print(f"Обнаружен удаленный товар {game_id}. В БД будет проставлен статус 'removed' и дата продажи будет установлена как текущая.")
         return item_status, None, None
-
     else:
         sold_badge = page.locator("#sidebar .web_ui__Cell__success", has_text="Sold").count()
         if sold_badge > 0:
@@ -351,86 +359,88 @@ def extract_current_game_properties_from_page(page, game_id):
                 "sold_date": None
             }
 
-        # Если seller_id нет на странице, то данные о товаре неполные и их
-            # не записываем: поиск элемента падает с исключением, а раннер
-            # ловит его в try/except по товару и пропускает только этот товар.
-            # Псевдонимизация: в БД записываем хеш seller_id, а не сам id.
-            seller_id_mark = page.locator('a:has([data-testid="profile-username"])')
-            seller_id_mark_count = seller_id_mark.count()
-            if seller_id_mark_count == 1:
-                seller_id = hashlib.sha256(seller_id_mark.get_attribute("href").split("/")[-1].encode('utf-8')).hexdigest()
-            else:
-                raise ValueError(f"Ссылка на продавца не найдена или найдена не одна: {seller_id_mark_count} шт.")
+    # Если seller_id нет на странице, то данные о товаре неполные и их
+    # не записываем: поиск элемента падает с исключением, а раннер
+    # ловит его в try/except по товару и пропускает только этот товар.
+    # Псевдонимизация: в БД записываем хеш seller_id, а не сам id.
+    seller_id_mark = page.locator('a:has([data-testid="profile-username"])')
+    seller_id_mark_count = seller_id_mark.count()
+    if seller_id_mark_count == 1:
+        seller_id = hashlib.sha256(seller_id_mark.get_attribute("href").split("/")[-1].encode('utf-8')).hexdigest()
+    else:
+        raise ValueError(f"Ссылка на продавца не найдена или найдена не одна: {seller_id_mark_count} шт.")
 
-        try:
-            price = Decimal(page.locator('[data-testid="item-price"]').text_content().strip()[1:])
-        except PlaywrightTimeoutError:
-            print(f"Внимание! Не найдено поле 'Цена' для game_id {game_id}")
-            price = None
+    try:
+        price = Decimal(page.locator('[data-testid="item-price"]').text_content().strip()[1:])
+    except PlaywrightTimeoutError:
+        print(f"Внимание! Не найдено поле 'Цена' для game_id {game_id}")
+        price = None
 
-        try:
-            price_with_protection = Decimal(page.locator('[data-testid="item-sidebar-price-container"] [data-testid="total-combined-price"]').text_content().strip()[1:])
-        except PlaywrightTimeoutError:
-            print(f"Внимание! Не найдено поле 'Цена с защитой' для game_id {game_id}")
-            price_with_protection = None
+    try:
+        price_with_protection = Decimal(page.locator('[data-testid="item-sidebar-price-container"] [data-testid="total-combined-price"]').text_content().strip()[1:])
+    except PlaywrightTimeoutError:
+        print(f"Внимание! Не найдено поле 'Цена с защитой' для game_id {game_id}")
+        price_with_protection = None
 
-        try:
-            shipping_cost = Decimal(page.locator('[data-testid="item-shipping-banner--suffix"]').text_content().strip().split(" ")[-1][1:])
-        except PlaywrightTimeoutError:
-            print(f"Внимание! Не найдено поле 'Стоимость доставки' для game_id {game_id}")
+    try:
+        shipping_cost = Decimal(page.locator('[data-testid="item-shipping-banner--suffix"]').text_content().strip().split(" ")[-1][1:])
+    except PlaywrightTimeoutError:
+        print(f"Внимание! Не найдено поле 'Стоимость доставки' для game_id {game_id}")
+        shipping_cost = None
+    except InvalidOperation:
+        shipping_cost = page.locator('[data-testid="item-shipping-banner--suffix"]').text_content().strip()
+        if shipping_cost.lower().find("free") != -1:
+            shipping_cost = Decimal(0.0)
+        elif page.locator('[data-testid="item-shipping-banner-title"]').text_content().lower().find("free") != -1:
+            shipping_cost = Decimal(0.0)
+        else:
+            print(f"Внимание! Обнаружена неизвестная стоимость доставки: {shipping_cost} для game_id {game_id}")
             shipping_cost = None
-        except InvalidOperation:
-            shipping_cost = page.locator('[data-testid="item-shipping-banner--suffix"]').text_content().strip()
-            if shipping_cost.lower().find("free") != -1:
-                shipping_cost = Decimal(0.0)
-            else:
-                print(f"Внимание! Обнаружена неизвестная стоимость доставки: {shipping_cost} для game_id {game_id}")
-                shipping_cost = None
 
-        likes_button = page.locator('[data-testid="favourite-button"]')
-        likes_button_count = likes_button.count()
-        if likes_button_count != 1:
-            print(f"Внимание! Найдено {likes_button_count} кнопок 'Лайки' для game_id {game_id}.")
+    likes_button = page.locator('[data-testid="favourite-button"]')
+    likes_button_count = likes_button.count()
+    if likes_button_count != 1:
+        print(f"Внимание! Найдено {likes_button_count} кнопок 'Лайки' для game_id {game_id}.")
+        likes_count = None
+    else:
+        likes_counter = likes_button.locator("span.web_ui__Text__text")
+        likes_counter_count = likes_counter.count()
+        if likes_counter_count == 1:
+            likes_count = int(likes_counter.text_content().strip())
+        elif likes_counter_count == 0:
+            likes_count = 0
+        else:
+            print(f"Внимание! Найдено {likes_counter_count} полей текст в блоке 'Лайки' для game_id {game_id}.")
             likes_count = None
-        else:
-            likes_counter = likes_button.locator("span.web_ui__Text__text")
-            likes_counter_count = likes_counter.count()
-            if likes_counter_count == 1:
-                likes_count = int(likes_counter.text_content().strip())
-            elif likes_counter_count == 0:
-                likes_count = 0
-            else:
-                print(f"Внимание! Найдено {likes_counter_count} полей текст в блоке 'Лайки' для game_id {game_id}.")
-                likes_count = None
 
-        # На проверенных страницах блок с числом отзывов есть всегда, в том
-        # числе при 0 отзывов (отражается 0). Если блок исчезнет, поиск упадёт
-        # и товар будет пропущен.
-        review_count = int(page.locator('a[href^="/member/"] .web_ui__Rating__label span').text_content().strip())
+    # На проверенных страницах блок с числом отзывов есть всегда, в том
+    # числе при 0 отзывов (отражается 0). Если блок исчезнет, поиск упадёт
+    # и товар будет пропущен.
+    review_count = int(page.locator('a[href^="/member/"] .web_ui__Rating__label span').text_content().strip())
 
-        seller_rating_mark = page.locator('div[aria-label^="Member rated"]')
-        if seller_rating_mark.count() == 1:
-            seller_rating = Decimal(seller_rating_mark.get_attribute("aria-label").split(" ")[2].strip())
-        elif seller_rating_mark.count() == 0 and review_count == 0:
-            seller_rating = None
-        else:
-            print(f"""Внимание! Обнаружены проблемы с полем 'Рейтинг продавца' для game_id {game_id}
-        - Найдено {seller_rating_mark.count()} блоков. Если больше 1 - изменилась структура страницы.
-        - Рейтинг продавца не обнаружен, но при этом обнаружены отзывы ({review_count} шт.)""")
-            seller_rating = None
+    seller_rating_mark = page.locator('div[aria-label^="Member rated"]')
+    if seller_rating_mark.count() == 1:
+        seller_rating = Decimal(seller_rating_mark.get_attribute("aria-label").split(" ")[2].strip())
+    elif seller_rating_mark.count() == 0 and review_count == 0:
+        seller_rating = None
+    else:
+        print(f"""Внимание! Обнаружены проблемы с полем 'Рейтинг продавца' для game_id {game_id}
+    - Найдено {seller_rating_mark.count()} блоков. Если больше 1 - изменилась структура страницы.
+    - Рейтинг продавца не обнаружен, но при этом обнаружены отзывы ({review_count} шт.)""")
+        seller_rating = None
 
-        game_parameters_from_page = {
-                'game_id': game_id,
-                'likes_count': likes_count,
-                'price': price,
-                'price_with_protection': price_with_protection,
-                'shipping_cost': shipping_cost
-        }
+    game_parameters_from_page = {
+            'game_id': game_id,
+            'likes_count': likes_count,
+            'price': price,
+            'price_with_protection': price_with_protection,
+            'shipping_cost': shipping_cost
+    }
 
-        seller_parameters_from_page = {
-                'seller_id': seller_id,
-                'seller_rating': seller_rating,
-                'review_count': review_count
+    seller_parameters_from_page = {
+            'seller_id': seller_id,
+            'seller_rating': seller_rating,
+            'review_count': review_count
         }
 
     return item_status, game_parameters_from_page, seller_parameters_from_page
