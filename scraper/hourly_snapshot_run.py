@@ -30,7 +30,7 @@ with sync_playwright() as p:
         "path": "/"
     }])
     page = context.new_page()
-    page.goto("https://www.vinted.lt/catalog/4881-board-games?referrer=item-crumbs")
+    page.goto("https://www.vinted.lt/catalog/4881-board-games?referrer=item-crumbs", wait_until="domcontentloaded")
     # ждём, пока страница каталога полностью прогрузит JS-контент
     page.wait_for_timeout(3000)
 
