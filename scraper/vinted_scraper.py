@@ -81,7 +81,7 @@ def extract_game_properties_from_page(page, game_id):
     except PlaywrightTimeoutError:
         print(f"Страница для товара {game_id} не загрузилась")
         return None
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(2000)
 
     not_found_marker_count = page.locator(not_found_page_selector).count()
     if not_found_marker_count > 0:
@@ -347,7 +347,7 @@ def extract_current_game_properties_from_page(page, game_id):
         page.locator(breadcrumb_selector).first.or_(page.locator(not_found_page_selector)).wait_for(timeout=15000)
     except PlaywrightTimeoutError:
         raise ValueError (f"Страница для товара {game_id} не загрузилась за 15 секунд")
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(2000)
 
     not_found_marker_count = page.locator(not_found_page_selector).count()
     if not_found_marker_count > 0:

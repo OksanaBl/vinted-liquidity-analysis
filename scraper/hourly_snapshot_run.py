@@ -11,7 +11,6 @@ from vinted_scraper import (
     get_game_ids_from_page,
     save_run_log,
     save_snapshots_to_db
-
 )
 
 load_dotenv()
