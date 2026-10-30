@@ -1,4 +1,5 @@
 import hashlib
+import time
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
@@ -72,14 +73,19 @@ def get_new_game_ids(conn):
 
 def extract_game_properties_from_page(page, game_id):
     url = f"https://www.vinted.lt/items/{game_id}"
-    page.goto(url, wait_until="domcontentloaded")
+    response = page.goto(url, wait_until="domcontentloaded")
+    page_status = response.status
     breadcrumb_selector = '[data-testid="breadcrumb"]'
     not_found_page_selector = '[data-testid="page-not-found"]'
-
+    start = time.perf_counter()
     try:
         page.locator(breadcrumb_selector).first.or_(page.locator(not_found_page_selector)).wait_for(timeout=15000)
+        elapsed = time.perf_counter() - start
+        if elapsed > 3:
+            print(f'Загрузка страницы для товара {game_id} заняла {elapsed:.2f} сек.')
     except PlaywrightTimeoutError:
-        print(f"Страница для товара {game_id} не загрузилась")
+        page_title = page.title()
+        print(f"Страница для товара {game_id} не загрузилась. Статус загрузки: {page_status}, заголовок страницы {page_title}")
         return None
     page.wait_for_timeout(2000)
 
@@ -114,7 +120,6 @@ def extract_game_properties_from_page(page, game_id):
     elif page.locator('[data-testid="item-photo-5--label"]').count() > 0:
         editional_photo_mark = int(page.locator('[data-testid="item-photo-5--label"]').text_content().strip().split(" ")[-1])
         photo_count += editional_photo_mark
-
 
     condition = page.locator('div[itemprop="status"]').text_content()
     category = "Board games"
@@ -215,11 +220,7 @@ def extract_game_properties_from_page(page, game_id):
     else:
         raise ValueError(f"Ссылка на продавца не найдена или найдена не одна: {seller_id_mark_count} шт.")
 
-    try:
-        price = Decimal(page.locator('[data-testid="item-price"]').text_content().strip()[1:])
-    except PlaywrightTimeoutError:
-        print(f"Внимание! Не найдено поле 'Цена' для game_id {game_id}")
-        price = None
+
 
     # На проверенных страницах блок с числом отзывов есть всегда, в том
     # числе при 0 отзывов (отражается 0). Если блок исчезнет, поиск упадёт
@@ -280,7 +281,7 @@ def save_to_db(conn, game_parameters):
         INSERT INTO goods (
             game_id, title, description, brand, photo_count, condition,
             category, likes_count, listed_date, price, price_with_protection,
-            shipping_cost, currency_code, seller_id
+            shipping_cost, currency_code, status, sold_date, seller_id
         )
         VALUES (
             %(game_id)s, %(title)s, %(description)s, %(brand)s, %(photo_count)s,
@@ -349,14 +350,19 @@ def get_current_game_properties_from_db(conn, game_id):
 
 def extract_current_game_properties_from_page(page, game_id):
     url = f"https://www.vinted.lt/items/{game_id}"
-    page.goto(url, wait_until="domcontentloaded")
+    response = page.goto(url, wait_until="domcontentloaded")
+    page_status = response.status
     breadcrumb_selector = '[data-testid="breadcrumb"]'
     not_found_page_selector = '[data-testid="page-not-found"]'
-
+    start = time.perf_counter()
     try:
         page.locator(breadcrumb_selector).first.or_(page.locator(not_found_page_selector)).wait_for(timeout=15000)
+        elapsed = time.perf_counter() - start
+        if elapsed > 3:
+            print(f'Загрузка страницы для товара {game_id} заняла {elapsed:.2f} сек.')
     except PlaywrightTimeoutError:
-        raise ValueError (f"Страница для товара {game_id} не загрузилась за 15 секунд")
+        page_title = page.title()
+        raise ValueError(f"Страница для товара {game_id} не загрузилась за 15 секунд. Статус загрузки: {page_status}, заголовок страницы {page_title}")
     page.wait_for_timeout(2000)
 
     not_found_marker_count = page.locator(not_found_page_selector).count()
@@ -513,5 +519,4 @@ def save_run_log(conn, log_parameters):
         INSERT INTO run_log (run_type, start_time, end_time, processed_game_count)
         VALUES (%(run_type)s, %(start_time)s, %(end_time)s, %(processed_game_count)s)
     """, log_parameters)
-
     conn.commit()
