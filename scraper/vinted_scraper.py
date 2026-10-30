@@ -237,6 +237,14 @@ def extract_game_properties_from_page(page, game_id):
     - Рейтинг продавца не обнаружен, но при этом обнаружены отзывы ({review_count} шт.)""")
         seller_rating = None
 
+    sold_badge = page.locator("#sidebar .web_ui__Cell__success", has_text="Sold").count()
+    if sold_badge > 0:
+        status = "sold"
+        sold_date = datetime.today().date()
+    else:
+        status = 'active'
+        sold_date = None
+
     game_parameters = {
         "game_id": game_id,
         "title": title,
@@ -251,6 +259,8 @@ def extract_game_properties_from_page(page, game_id):
         "price_with_protection": price_with_protection,
         "shipping_cost": shipping_cost,
         "currency_code": currency_code,
+        "status": status,
+        "sold_date": sold_date,
         "seller_id": seller_id,
         "seller_rating": seller_rating,
         "review_count": review_count
@@ -275,7 +285,7 @@ def save_to_db(conn, game_parameters):
         VALUES (
             %(game_id)s, %(title)s, %(description)s, %(brand)s, %(photo_count)s,
             %(condition)s, %(category)s, %(likes_count)s, %(listed_date)s, %(price)s,
-            %(price_with_protection)s, %(shipping_cost)s, %(currency_code)s, %(seller_id)s
+            %(price_with_protection)s, %(shipping_cost)s, %(currency_code)s, %(status)s, %(sold_date)s, %(seller_id)s
         )
     """, game_parameters)
 
