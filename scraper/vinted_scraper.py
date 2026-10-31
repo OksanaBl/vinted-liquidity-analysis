@@ -7,6 +7,7 @@ import psycopg
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from psycopg.rows import dict_row
 
+REJECTED = "rejected"
 
 def accept_cookies(page):
     policy_button = page.locator("#onetrust-accept-btn-handler")
@@ -68,7 +69,9 @@ def get_new_game_ids(conn):
         )
     """)
     snapshot_game_ids = [row["game_id"] for row in cur.fetchall()]
-    new_game_ids = list(set(snapshot_game_ids) - set(existing_game_ids))
+    cur.execute("SELECT item_id FROM rejected_ids")
+    rejected_item_ids = [row["item_id"] for row in cur.fetchall()]
+    new_game_ids = list(set(snapshot_game_ids) - set(existing_game_ids) - set(rejected_item_ids))
     return new_game_ids
 
 def extract_game_properties_from_page(page, game_id):
@@ -97,7 +100,7 @@ def extract_game_properties_from_page(page, game_id):
     board_games_marker_count = page.locator(f'{breadcrumb_selector}[href^="/catalog/4881-board-games"]').count()
     if board_games_marker_count == 0:
         print(f"Внимание! Товар {game_id} не относится к категории Board games. Его характеристики не извлекаем.")
-        return None
+        return REJECTED
 
     title = page.locator('[data-testid="item-page-summary-plugin"] h1').text_content()
     description = page.locator('div[itemprop="description"]').text_content()
@@ -290,6 +293,20 @@ def save_to_db(conn, game_parameters):
         )
     """, game_parameters)
 
+    conn.commit()
+
+def save_rejected_ids_to_db(conn, game_id):
+    cur = conn.cursor()
+    rejected_datetime = datetime.now(timezone.utc)
+    item_data = {
+        'item_id': game_id,
+        'rejected_datetime': rejected_datetime
+    }
+    cur.execute("""
+        INSERT INTO rejected_ids (item_id, rejected_datetime)
+        VALUES (%(item_id)s, %(rejected_datetime)s)
+        ON CONFLICT (item_id) DO NOTHING
+    """, item_data)
     conn.commit()
 
 def get_unsold_game_ids_from_db(conn):

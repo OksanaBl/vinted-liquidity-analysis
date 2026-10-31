@@ -11,9 +11,10 @@ from vinted_scraper import (
     choose_country,
     extract_game_properties_from_page,
     get_new_game_ids,
+    REJECTED,
     save_run_log,
+    save_rejected_ids_to_db,
     save_to_db
-
 )
 
 load_dotenv()
@@ -42,6 +43,7 @@ with sync_playwright() as p:
     accept_cookies(page)
     new_game_ids = get_new_game_ids(conn)
     processed_game_count = 0
+
     for game_id in new_game_ids:
         try:
             game_parameters = extract_game_properties_from_page(page, game_id)
@@ -49,7 +51,15 @@ with sync_playwright() as p:
             print(f"Внимание! Для {game_id} возникла ошибка парсинга {e}")
             continue  # не прерываем discovery из-за одной сломанной карточки товара
 
-        if game_parameters is not None:
+        if game_parameters is None:
+            continue
+        elif game_parameters == REJECTED:
+            try:
+                save_rejected_ids_to_db(conn, game_id)
+            except Exception as e:
+                conn.rollback()  # откатываем транзакцию, чтобы ошибка сохранения одного товара не заблокировала следующие
+                print(f"Внимание! {game_id} не удалось сохранить в таблице отвергнутых item_id. Ошибка: {e}")
+        else:
             try:
                 save_to_db(conn, game_parameters)
                 processed_game_count += 1
