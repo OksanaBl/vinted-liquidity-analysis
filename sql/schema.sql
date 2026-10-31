@@ -62,3 +62,8 @@ CREATE TABLE IF NOT EXISTS run_log (
 	end_time TIMESTAMPTZ NOT NULL,
 	processed_game_count INTEGER NOT NULL
 ); 
+
+CREATE TABLE IF NOT EXISTS rejected_ids (
+	item_id BIGINT PRIMARY KEY,
+	rejected_datetime TIMESTAMPTZ
+);
