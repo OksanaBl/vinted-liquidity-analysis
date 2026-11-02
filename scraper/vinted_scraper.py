@@ -309,9 +309,14 @@ def save_rejected_ids_to_db(conn, game_id):
     """, item_data)
     conn.commit()
 
-def get_unsold_game_ids_from_db(conn):
+def get_unsold_game_ids_from_db(conn, remainder):
     cur = conn.cursor()
-    cur.execute("SELECT game_id FROM goods WHERE sold_date IS NULL")
+    cur.execute("""
+        SELECT game_id
+        FROM goods
+        WHERE sold_date IS NULL
+         AND MOD(game_id, 2) = %(remainder)s
+    """, {"remainder": remainder})
     unsold_game_ids = [row["game_id"] for row in cur.fetchall()]
 
     return unsold_game_ids

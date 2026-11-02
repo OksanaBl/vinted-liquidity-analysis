@@ -18,6 +18,16 @@ from vinted_scraper import (
 
 load_dotenv()
 connection_string = os.getenv("DATABASE_URL")
+revisit_part = os.getenv("REVISIT_PART")
+remainder_map = {
+"even": 0,
+"odd": 1
+}
+if revisit_part not in remainder_map:
+    raise ValueError(
+        f"REVISIT_PART должна быть 'even' или 'odd', получено: {revisit_part!r}"
+    )
+remainder = remainder_map[revisit_part]
 
 start_time = datetime.now(timezone.utc)
 # Подключение к БД Postgres
@@ -41,7 +51,7 @@ with sync_playwright() as p:
 
     choose_country(page)
     accept_cookies(page)
-    unsold_game_ids = get_unsold_game_ids_from_db(conn)
+    unsold_game_ids = get_unsold_game_ids_from_db(conn, remainder)
 
     processed_game_count = 0
     for game_id in unsold_game_ids:
@@ -76,7 +86,7 @@ with sync_playwright() as p:
 
 end_time = datetime.now(timezone.utc)
 log_parameters = {
-    "run_type": "revisit",
+    "run_type": f"revisit_{revisit_part}",
     "start_time": start_time,
     "end_time": end_time,
     "processed_game_count": processed_game_count
