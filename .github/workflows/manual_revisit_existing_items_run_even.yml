@@ -1,6 +1,6 @@
 # This is a basic workflow that is manually triggered
 
-name: Manual revisit_existing_items_run test
+name: Manual revisit_existing_items_run even
 
 # Test of revisit_existing_items_run.py launching
 on:
@@ -34,3 +34,5 @@ jobs:
       env: 
         DATABASE_URL: ${{secrets.DATABASE_URL}}
         PYTHONUNBUFFERED: 1
+        REVISIT_PART: even
+      
