@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 import os
+import time
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, Error as PlaywrightError
 from dotenv import load_dotenv
 import psycopg
 from psycopg.rows import dict_row
@@ -45,9 +46,17 @@ with sync_playwright() as p:
         "path": "/"
     }])
     page = context.new_page()
-    page.goto("https://www.vinted.lt/catalog/4881-board-games?referrer=item-crumbs", wait_until="domcontentloaded")
-    # ждём, пока страница каталога полностью прогрузит JS-контент
-    page.wait_for_timeout(3000)
+    for attempt in range(3):
+        try:
+            page.goto("https://www.vinted.lt/catalog/4881-board-games?referrer=item-crumbs", wait_until="domcontentloaded", timeout=60000)
+            # ждём, пока страница каталога полностью прогрузит JS-контент
+            page.wait_for_timeout(3000)
+            break
+        except PlaywrightError as e:
+            print(f"Попытка {attempt + 1}: Не удалось загрузить страницу каталога. Ошибка: {e}.")
+            time.sleep(30)
+    else:
+        raise RuntimeError("Страница каталога не загрузилась после 3 попыток. Проверка существующих товаров прервана.")
 
     choose_country(page)
     accept_cookies(page)
