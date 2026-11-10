@@ -309,13 +309,20 @@ def save_rejected_ids_to_db(conn, game_id):
     """, item_data)
     conn.commit()
 
+
 def get_unsold_game_ids_from_db(conn, remainder):
     cur = conn.cursor()
+    # Отсечка: товары, размещённые до 26.10 (начало периода анализа), не ревизим:
+    # в анализ они не входят, а очередь иначе не помещается в лимит 6 ч (решено 10.11).
+    # ORDER BY: свежие товары идут в ревизит первыми, чтобы при таймауте
+    # недообработанными остались самые старые.
     cur.execute("""
         SELECT game_id
         FROM goods
         WHERE sold_date IS NULL
          AND MOD(game_id, 2) = %(remainder)s
+         AND listed_date >= '2026-10-26'
+        ORDER BY listed_date DESC
     """, {"remainder": remainder})
     unsold_game_ids = [row["game_id"] for row in cur.fetchall()]
 
